@@ -29,3 +29,5 @@ export function findDrift(config: Config, changedFiles: string[]): Drift[] {
   }
   return drift;
 }
+
+// Self-test change.
