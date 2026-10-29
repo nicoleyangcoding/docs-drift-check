@@ -106,3 +106,5 @@ npm run all     # typecheck, test, build dist/
 ## License
 
 [MIT](LICENSE). Licenses of bundled dependencies are in [dist/licenses.txt](dist/licenses.txt).
+
+<!-- self-test -->
