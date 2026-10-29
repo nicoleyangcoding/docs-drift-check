@@ -1,0 +1,5 @@
+# This repo checks itself: changing the action's behavior should update the README.
+mappings:
+  - name: Action behavior
+    code: ["src/**", "action.yml"]
+    docs: README.md
