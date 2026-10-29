@@ -1,0 +1,33 @@
+name: Docs Drift Check
+description: Comment on pull requests that change code without updating the docs that describe it.
+author: Nicole Yang
+branding:
+  icon: book-open
+  color: blue
+
+inputs:
+  config:
+    description: Path to the mapping file, read from the base branch.
+    default: .github/docs-map.yml
+  mode:
+    description: "'warn' comments only. 'strict' also fails the check."
+    default: warn
+  skip-label:
+    description: Pull requests with this label are skipped.
+    default: docs-not-needed
+  comment:
+    description: Post or update a comment on the pull request.
+    default: "true"
+  github-token:
+    description: Token used to read the pull request and post the comment.
+    default: ${{ github.token }}
+
+outputs:
+  drift:
+    description: "'true' when some docs were not updated."
+  areas:
+    description: JSON list of the areas that need doc updates, each with its name and docs.
+
+runs:
+  using: node24
+  main: dist/index.js

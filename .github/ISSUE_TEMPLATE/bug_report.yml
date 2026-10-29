@@ -1,0 +1,21 @@
+name: Bug report
+description: The action didn't behave as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and a link to the workflow run if the repo is public.
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Your docs-map.yml
+      render: yaml
+  - type: input
+    id: version
+    attributes:
+      label: Action version
+      description: For example v1 or v1.0.0
