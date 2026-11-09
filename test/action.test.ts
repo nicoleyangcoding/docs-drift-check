@@ -83,6 +83,13 @@ describe("driftComment", () => {
     expect(body).toContain("A\\|B");
     expect(body).toContain("and 3 more");
     expect(body).toContain("`skip`");
+    expect(body).toContain("| `d.md` |");
+  });
+
+  it("links literal doc paths but not globs", () => {
+    const mapping = { name: "A", code: ["src/**"], docs: ["docs/a b.md", "docs/guides/**"] };
+    const body = driftComment([{ mapping, changedCode: ["src/x.ts"] }], "skip", "https://github.com/o/r/blob/abc");
+    expect(body).toContain("[`docs/a b.md`](https://github.com/o/r/blob/abc/docs/a%20b.md), `docs/guides/**`");
   });
 });
 
@@ -134,7 +141,15 @@ class FakeLog implements Log {
   }
 }
 
-const PR: PullRequest = { owner: "o", repo: "r", number: 1, baseSha: "base", headSha: "head", labels: [] };
+const PR: PullRequest = {
+  serverUrl: "https://github.com",
+  owner: "o",
+  repo: "r",
+  number: 1,
+  baseSha: "base",
+  headSha: "head",
+  labels: [],
+};
 const INPUTS: Inputs = { configPath: ".github/docs-map.yml", mode: "warn", skipLabel: "docs-not-needed", comment: true };
 
 function setup() {
@@ -149,6 +164,7 @@ describe("run", () => {
     api.changed = ["src/auth/login.ts"];
     expect((await run(INPUTS, PR, api, log)).drift).toBe(true);
     expect(api.comments).toHaveLength(1);
+    expect(api.comments[0]?.body).toContain("(https://github.com/o/r/blob/head/docs/authentication.md)");
     expect(log.outputs.drift).toBe("true");
     expect(log.failed).toEqual([]);
 

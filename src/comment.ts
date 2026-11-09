@@ -14,14 +14,27 @@ function fileList(files: string[]): string {
   return extra > 0 ? `${shown} and ${extra} more` : shown;
 }
 
+function isGlob(pattern: string): boolean {
+  return /[*?[\]{}]/.test(pattern);
+}
+
+function docLink(doc: string, blobUrl: string | undefined): string {
+  // A glob like docs/guides/** has no single file to point at.
+  if (!blobUrl || isGlob(doc)) return code(doc);
+  const path = doc.split("/").map(encodeURIComponent).join("/");
+  return `[${code(doc)}](${blobUrl}/${path})`;
+}
+
 function cell(text: string): string {
   return text.replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
 }
 
-export function driftComment(drift: Drift[], skipLabel: string): string {
-  const rows = drift.map(
-    (d) => `| ${cell(d.mapping.name)} | ${fileList(d.changedCode)} | ${d.mapping.docs.map(code).join(", ")} |`,
-  );
+/** `blobUrl` is the base for file links, like https://github.com/owner/repo/blob/<head sha>. */
+export function driftComment(drift: Drift[], skipLabel: string, blobUrl?: string): string {
+  const rows = drift.map((d) => {
+    const docs = d.mapping.docs.map((doc) => docLink(doc, blobUrl)).join(", ");
+    return `| ${cell(d.mapping.name)} | ${fileList(d.changedCode)} | ${docs} |`;
+  });
   return [
     MARKER,
     "### Docs may need an update",

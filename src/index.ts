@@ -23,6 +23,7 @@ async function main(): Promise<void> {
 
   const { owner, repo } = github.context.repo;
   const pr: PullRequest = {
+    serverUrl: github.context.serverUrl,
     owner,
     repo,
     number: payload.number,

@@ -10,6 +10,7 @@ export interface Inputs {
 }
 
 export interface PullRequest {
+  serverUrl: string;
   owner: string;
   repo: string;
   number: number;
@@ -95,7 +96,9 @@ export async function run(inputs: Inputs, pr: PullRequest, api: GitHubApi, log: 
   log.setOutput("areas", JSON.stringify(drift.map((d) => ({ name: d.mapping.name, docs: d.mapping.docs }))));
 
   if (drift.length > 0) {
-    const body = driftComment(drift, inputs.skipLabel);
+    // Link the head commit rather than the branch, so links keep working after the branch is deleted.
+    const blobUrl = `${pr.serverUrl}/${pr.owner}/${pr.repo}/blob/${pr.headSha}`;
+    const body = driftComment(drift, inputs.skipLabel, blobUrl);
     await log.summary(body.replace(MARKER, "").trim());
     if (inputs.comment) await upsertComment(api, body, true, log);
     const areas = drift.map((d) => d.mapping.name).join(", ");
