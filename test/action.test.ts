@@ -26,6 +26,7 @@ describe("parseConfig", () => {
       name: "Authentication",
       code: ["src/auth/**"],
       docs: ["docs/authentication.md"],
+      require: "any",
     });
     expect(config.mappings[1]?.name).toBe("src/api/**, !ignored");
     expect(config.ignore).toEqual(["**/*.test.ts"]);
@@ -39,6 +40,7 @@ describe("parseConfig", () => {
     ["mapings:\n  - code: a\n    docs: b", "unknown top-level"],
     ["mappings: [", "YAML"],
     ["mappings:\n  - code: []\n    docs: b", "code"],
+    ["mappings:\n  - code: a\n    docs: b\n    require: some", "'any' or 'all'"],
   ])("rejects %j", (text, message) => {
     expect(() => parseConfig(text)).toThrow(ConfigError);
     expect(() => parseConfig(text)).toThrow(new RegExp(message));
@@ -73,12 +75,28 @@ describe("findDrift", () => {
     const names = findDrift(config, ["src/auth/a.ts", "src/api/b.ts"]).map((d) => d.mapping.name);
     expect(names).toEqual(["Authentication", "src/api/**, !ignored"]);
   });
+
+  it("with require: all, needs every doc to change and lists the missing ones", () => {
+    const strict = parseConfig(
+      'mappings:\n  - code: "src/api/**"\n    docs: [docs/api.md, "docs/clients/**"]\n    require: all',
+    );
+    expect(strict.mappings[0]?.require).toBe("all");
+    const drift = findDrift(strict, ["src/api/routes.ts", "docs/api.md"]);
+    expect(drift).toHaveLength(1);
+    expect(drift[0]?.missingDocs).toEqual(["docs/clients/**"]);
+    expect(findDrift(strict, ["src/api/routes.ts", "docs/api.md", "docs/clients/js.md"])).toEqual([]);
+  });
+
+  it("lists every doc as missing in the default mode", () => {
+    expect(findDrift(config, ["src/api/routes.ts"])[0]?.missingDocs).toEqual(["docs/api.md", "README.md"]);
+  });
 });
 
 describe("driftComment", () => {
   it("escapes table characters and truncates long lists", () => {
     const files = Array.from({ length: 8 }, (_, i) => `src/a|${i}.ts`);
-    const body = driftComment([{ mapping: { name: "A|B", code: ["src/**"], docs: ["d.md"] }, changedCode: files }], "skip");
+    const mapping = { name: "A|B", code: ["src/**"], docs: ["d.md"], require: "any" as const };
+    const body = driftComment([{ mapping, changedCode: files, missingDocs: ["d.md"] }], "skip");
     expect(body.startsWith(MARKER)).toBe(true);
     expect(body).toContain("A\\|B");
     expect(body).toContain("and 3 more");
@@ -87,8 +105,9 @@ describe("driftComment", () => {
   });
 
   it("links literal doc paths but not globs", () => {
-    const mapping = { name: "A", code: ["src/**"], docs: ["docs/a b.md", "docs/guides/**"] };
-    const body = driftComment([{ mapping, changedCode: ["src/x.ts"] }], "skip", "https://github.com/o/r/blob/abc");
+    const mapping = { name: "A", code: ["src/**"], docs: ["docs/a b.md", "docs/guides/**"], require: "any" as const };
+    const drift = [{ mapping, changedCode: ["src/x.ts"], missingDocs: mapping.docs }];
+    const body = driftComment(drift, "skip", "https://github.com/o/r/blob/abc");
     expect(body).toContain("[`docs/a b.md`](https://github.com/o/r/blob/abc/docs/a%20b.md), `docs/guides/**`");
   });
 });

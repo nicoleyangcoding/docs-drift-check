@@ -2,6 +2,11 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-11-16
+
+### Added
+- `require: all` per mapping, for areas where every listed doc must change. The comment then lists only the docs still missing.
+
 ## [1.1.0] - 2026-11-09
 
 ### Added

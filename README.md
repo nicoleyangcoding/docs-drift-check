@@ -6,7 +6,7 @@ Docs go stale one pull request at a time, and reviewers rarely remember which pa
 
 > ### Docs may need an update
 >
-> This pull request changes code that has related documentation, but the docs weren't changed.
+> This pull request changes code that has related documentation, but the docs below weren't changed.
 >
 > | Area | Changed code | Docs to check |
 > | --- | --- | --- |
@@ -53,7 +53,7 @@ That's all. No checkout step is needed: the action reads everything through the 
 ## How it decides
 
 - A mapping is **triggered** when the pull request changes, adds, deletes or renames a file matching its `code` patterns.
-- It counts as **updated** if the same pull request changes any one of its `docs`.
+- It counts as **updated** if the same pull request changes any one of its `docs`. With `require: all`, every entry in `docs` needs a change, and the comment lists only the ones still missing.
 - Triggered but not updated means drift, and the action comments. Each doc in the comment links to that file as of the pull request's latest commit (globs are listed as plain text).
 - Later pushes edit the same comment instead of adding new ones. When the docs get updated, the comment changes to "Docs look up to date". The action never comments when there was nothing to say.
 
@@ -67,6 +67,7 @@ That's all. No checkout step is needed: the action reads everything through the 
 | `mappings[].code` | Glob or list of globs for the code in that area. |
 | `mappings[].docs` | File, glob or list of the docs that describe it. |
 | `mappings[].name` | Label shown in the comment. Optional. |
+| `mappings[].require` | `any` (default): changing one of the docs is enough. `all`: each entry in `docs` must be changed (a glob entry is satisfied by any file it matches). Optional. |
 | `ignore` | Globs that never trigger a mapping, like tests: `["**/*.test.ts"]`. Optional. |
 
 Patterns use [minimatch](https://github.com/isaacs/minimatch) syntax: `*` matches within a folder and `**` matches across folders.

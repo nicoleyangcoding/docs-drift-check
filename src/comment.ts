@@ -32,14 +32,14 @@ function cell(text: string): string {
 /** `blobUrl` is the base for file links, like https://github.com/owner/repo/blob/<head sha>. */
 export function driftComment(drift: Drift[], skipLabel: string, blobUrl?: string): string {
   const rows = drift.map((d) => {
-    const docs = d.mapping.docs.map((doc) => docLink(doc, blobUrl)).join(", ");
+    const docs = d.missingDocs.map((doc) => docLink(doc, blobUrl)).join(", ");
     return `| ${cell(d.mapping.name)} | ${fileList(d.changedCode)} | ${docs} |`;
   });
   return [
     MARKER,
     "### Docs may need an update",
     "",
-    "This pull request changes code that has related documentation, but the docs weren't changed.",
+    "This pull request changes code that has related documentation, but the docs below weren't changed.",
     "",
     "| Area | Changed code | Docs to check |",
     "| --- | --- | --- |",

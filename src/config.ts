@@ -4,6 +4,7 @@ export interface Mapping {
   name: string;
   code: string[];
   docs: string[];
+  require: "any" | "all";
 }
 
 export interface Config {
@@ -13,7 +14,7 @@ export interface Config {
 
 export class ConfigError extends Error {}
 
-const MAPPING_KEYS = new Set(["name", "code", "docs"]);
+const MAPPING_KEYS = new Set(["name", "code", "docs", "require"]);
 const TOP_KEYS = new Set(["mappings", "ignore"]);
 
 function patterns(value: unknown, where: string): string[] {
@@ -52,7 +53,11 @@ export function parseConfig(text: string): Config {
     const code = patterns(entry.code, `${where}.code`);
     const docs = patterns(entry.docs, `${where}.docs`);
     const name = typeof entry.name === "string" && entry.name.trim() ? entry.name.trim() : code.join(", ");
-    return { name, code, docs };
+    const require = entry.require ?? "any";
+    if (require !== "any" && require !== "all") {
+      throw new ConfigError(`${where}.require must be 'any' or 'all'`);
+    }
+    return { name, code, docs, require };
   });
   const ignore = root.ignore === undefined ? [] : patterns(root.ignore, "ignore");
   return { mappings, ignore };
