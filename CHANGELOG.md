@@ -2,6 +2,11 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-11-20
+
+### Added
+- `min-changed-lines` input. An area is only checked when its code changes add up to at least that many lines, so one-line fixes don't trigger a reminder. The default, `0`, keeps the old behavior.
+
 ## [1.2.0] - 2026-11-16
 
 ### Added

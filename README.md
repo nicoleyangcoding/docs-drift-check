@@ -54,6 +54,7 @@ That's all. No checkout step is needed: the action reads everything through the 
 
 - A mapping is **triggered** when the pull request changes, adds, deletes or renames a file matching its `code` patterns.
 - It counts as **updated** if the same pull request changes any one of its `docs`. With `require: all`, every entry in `docs` needs a change, and the comment lists only the ones still missing.
+- With `min-changed-lines` set, a mapping is only triggered when its changed code adds up to at least that many lines (added plus deleted), so typo fixes and one-line tweaks pass quietly. A pure rename counts as zero lines.
 - Triggered but not updated means drift, and the action comments. Each doc in the comment links to that file as of the pull request's latest commit (globs are listed as plain text).
 - Later pushes edit the same comment instead of adding new ones. When the docs get updated, the comment changes to "Docs look up to date". The action never comments when there was nothing to say.
 
@@ -81,6 +82,7 @@ The mapping file is read from the **base branch**, so a pull request can't loose
 | `config` | `.github/docs-map.yml` | Path to the mapping file. |
 | `mode` | `warn` | `warn` only comments. `strict` also fails the check. |
 | `skip-label` | `docs-not-needed` | Pull requests with this label pass. |
+| `min-changed-lines` | `0` | Skip an area when its code changes total fewer lines than this. `0` checks every change. |
 | `comment` | `true` | Set to `false` to write only to the job summary. |
 | `github-token` | `github.token` | Token used to read the pull request and comment. |
 

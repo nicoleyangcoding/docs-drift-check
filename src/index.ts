@@ -14,11 +14,17 @@ async function main(): Promise<void> {
     core.setFailed(`mode must be 'warn' or 'strict', got '${mode}'`);
     return;
   }
+  const minLines = core.getInput("min-changed-lines") || "0";
+  if (!/^\d+$/.test(minLines)) {
+    core.setFailed(`min-changed-lines must be a whole number, got '${minLines}'`);
+    return;
+  }
   const inputs: Inputs = {
     configPath: core.getInput("config") || ".github/docs-map.yml",
     mode,
     skipLabel: core.getInput("skip-label") || "docs-not-needed",
     comment: core.getBooleanInput("comment"),
+    minChangedLines: Number(minLines),
   };
 
   const { owner, repo } = github.context.repo;
@@ -52,7 +58,7 @@ async function main(): Promise<void> {
         pull_number: pr.number,
         per_page: 100,
       });
-      return files.flatMap((f) => (f.previous_filename ? [f.filename, f.previous_filename] : [f.filename]));
+      return files.map((f) => ({ path: f.filename, previousPath: f.previous_filename, changes: f.changes }));
     },
     async listComments() {
       const comments = await octokit.paginate(octokit.rest.issues.listComments, {

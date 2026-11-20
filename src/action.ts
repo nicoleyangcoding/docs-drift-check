@@ -1,12 +1,13 @@
 import { ConfigError, parseConfig } from "./config.js";
 import { MARKER, driftComment, resolvedComment } from "./comment.js";
-import { findDrift } from "./drift.js";
+import { findDrift, type ChangedFile } from "./drift.js";
 
 export interface Inputs {
   configPath: string;
   mode: "warn" | "strict";
   skipLabel: string;
   comment: boolean;
+  minChangedLines: number;
 }
 
 export interface PullRequest {
@@ -22,7 +23,7 @@ export interface PullRequest {
 /** The small slice of the GitHub API this action uses, so tests can provide a fake. */
 export interface GitHubApi {
   readFile(path: string, ref: string): Promise<string | null>;
-  changedFiles(): Promise<string[]>;
+  changedFiles(): Promise<ChangedFile[]>;
   listComments(): Promise<{ id: number; body: string }[]>;
   createComment(body: string): Promise<void>;
   updateComment(id: number, body: string): Promise<void>;
@@ -91,7 +92,7 @@ export async function run(inputs: Inputs, pr: PullRequest, api: GitHubApi, log: 
   }
 
   const skipped = pr.labels.includes(inputs.skipLabel);
-  const drift = skipped ? [] : findDrift(config, await api.changedFiles());
+  const drift = skipped ? [] : findDrift(config, await api.changedFiles(), inputs.minChangedLines);
   log.setOutput("drift", String(drift.length > 0));
   log.setOutput("areas", JSON.stringify(drift.map((d) => ({ name: d.mapping.name, docs: d.mapping.docs }))));
 

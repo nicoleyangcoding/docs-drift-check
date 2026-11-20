@@ -4,7 +4,7 @@ Small, focused releases. Suggestions are welcome in [issues](https://github.com/
 
 ## 1.1
 - [x] `require: all` per mapping, for areas where every listed doc must change
-- [ ] `min-changed-lines` input, so one-line fixes don't trigger a reminder
+- [x] `min-changed-lines` input, so one-line fixes don't trigger a reminder
 - [x] Link each doc in the comment to its file on the pull request's head branch
 
 ## 1.2

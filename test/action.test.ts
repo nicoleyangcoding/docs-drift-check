@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { run, type GitHubApi, type Inputs, type Log, type PullRequest } from "../src/action.js";
 import { MARKER, driftComment } from "../src/comment.js";
 import { ConfigError, parseConfig } from "../src/config.js";
-import { findDrift } from "../src/drift.js";
+import { findDrift, type ChangedFile } from "../src/drift.js";
+
+function changed(...paths: string[]): ChangedFile[] {
+  return paths.map((path) => ({ path, changes: 1 }));
+}
 
 const CONFIG = `
 mappings:
@@ -51,28 +55,28 @@ describe("findDrift", () => {
   const config = parseConfig(CONFIG);
 
   it("flags code changes without doc changes", () => {
-    const drift = findDrift(config, ["src/auth/login.ts", "src/auth/session.ts", "package.json"]);
+    const drift = findDrift(config, changed("src/auth/login.ts", "src/auth/session.ts", "package.json"));
     expect(drift).toHaveLength(1);
     expect(drift[0]?.mapping.name).toBe("Authentication");
     expect(drift[0]?.changedCode).toEqual(["src/auth/login.ts", "src/auth/session.ts"]);
   });
 
   it("is satisfied by any one of the listed docs", () => {
-    expect(findDrift(config, ["src/api/routes.ts", "README.md"])).toEqual([]);
+    expect(findDrift(config, changed("src/api/routes.ts", "README.md"))).toEqual([]);
   });
 
   it("supports doc globs", () => {
-    expect(findDrift(config, ["src/cli/main.ts", "docs/guides/start.md"])).toEqual([]);
-    expect(findDrift(config, ["src/cli/main.ts"])).toHaveLength(1);
+    expect(findDrift(config, changed("src/cli/main.ts", "docs/guides/start.md"))).toEqual([]);
+    expect(findDrift(config, changed("src/cli/main.ts"))).toHaveLength(1);
   });
 
   it("skips ignored files and dotfiles match", () => {
-    expect(findDrift(config, ["src/auth/login.test.ts"])).toEqual([]);
-    expect(findDrift(config, ["src/auth/.env.example"])).toHaveLength(1);
+    expect(findDrift(config, changed("src/auth/login.test.ts"))).toEqual([]);
+    expect(findDrift(config, changed("src/auth/.env.example"))).toHaveLength(1);
   });
 
   it("reports several areas at once", () => {
-    const names = findDrift(config, ["src/auth/a.ts", "src/api/b.ts"]).map((d) => d.mapping.name);
+    const names = findDrift(config, changed("src/auth/a.ts", "src/api/b.ts")).map((d) => d.mapping.name);
     expect(names).toEqual(["Authentication", "src/api/**, !ignored"]);
   });
 
@@ -81,14 +85,33 @@ describe("findDrift", () => {
       'mappings:\n  - code: "src/api/**"\n    docs: [docs/api.md, "docs/clients/**"]\n    require: all',
     );
     expect(strict.mappings[0]?.require).toBe("all");
-    const drift = findDrift(strict, ["src/api/routes.ts", "docs/api.md"]);
+    const drift = findDrift(strict, changed("src/api/routes.ts", "docs/api.md"));
     expect(drift).toHaveLength(1);
     expect(drift[0]?.missingDocs).toEqual(["docs/clients/**"]);
-    expect(findDrift(strict, ["src/api/routes.ts", "docs/api.md", "docs/clients/js.md"])).toEqual([]);
+    expect(findDrift(strict, changed("src/api/routes.ts", "docs/api.md", "docs/clients/js.md"))).toEqual([]);
+  });
+
+  it("ignores areas whose code changes are below min-changed-lines", () => {
+    const files = [
+      { path: "src/auth/login.ts", changes: 1 },
+      { path: "src/auth/session.ts", changes: 2 },
+      { path: "src/api/routes.ts", changes: 40 },
+    ];
+    expect(findDrift(config, files, 3).map((d) => d.mapping.name)).toEqual(["Authentication", "src/api/**, !ignored"]);
+    expect(findDrift(config, files, 4).map((d) => d.mapping.name)).toEqual(["src/api/**, !ignored"]);
+    expect(findDrift(config, files, 0)).toHaveLength(2);
+  });
+
+  it("counts a renamed file once and matches either name", () => {
+    const moved = [{ path: "src/auth/new.ts", previousPath: "src/auth/old.ts", changes: 2 }];
+    expect(findDrift(config, moved, 3)).toEqual([]);
+    expect(findDrift(config, moved, 2)[0]?.changedCode).toEqual(["src/auth/new.ts", "src/auth/old.ts"]);
+    const renamedDoc = [...moved, { path: "docs/auth.md", previousPath: "docs/authentication.md", changes: 0 }];
+    expect(findDrift(config, renamedDoc)).toEqual([]);
   });
 
   it("lists every doc as missing in the default mode", () => {
-    expect(findDrift(config, ["src/api/routes.ts"])[0]?.missingDocs).toEqual(["docs/api.md", "README.md"]);
+    expect(findDrift(config, changed("src/api/routes.ts"))[0]?.missingDocs).toEqual(["docs/api.md", "README.md"]);
   });
 });
 
@@ -115,13 +138,14 @@ describe("driftComment", () => {
 class FakeApi implements GitHubApi {
   files: Record<string, Record<string, string>> = {};
   changed: string[] = [];
+  lines: Record<string, number> = {};
   comments: { id: number; body: string }[] = [];
   failComments = false;
   async readFile(path: string, ref: string) {
     return this.files[ref]?.[path] ?? null;
   }
   async changedFiles() {
-    return this.changed;
+    return this.changed.map((path) => ({ path, changes: this.lines[path] ?? 1 }));
   }
   async listComments() {
     if (this.failComments) throw Object.assign(new Error("forbidden"), { status: 403 });
@@ -169,7 +193,13 @@ const PR: PullRequest = {
   headSha: "head",
   labels: [],
 };
-const INPUTS: Inputs = { configPath: ".github/docs-map.yml", mode: "warn", skipLabel: "docs-not-needed", comment: true };
+const INPUTS: Inputs = {
+  configPath: ".github/docs-map.yml",
+  mode: "warn",
+  skipLabel: "docs-not-needed",
+  comment: true,
+  minChangedLines: 0,
+};
 
 function setup() {
   const api = new FakeApi();
@@ -205,6 +235,19 @@ describe("run", () => {
     api.changed = ["src/auth/login.ts"];
     await run({ ...INPUTS, mode: "strict" }, PR, api, log);
     expect(log.failed[0]).toMatch(/Authentication/);
+  });
+
+  it("passes small changes when min-changed-lines is set", async () => {
+    const { api, log } = setup();
+    api.changed = ["src/auth/login.ts"];
+    api.lines = { "src/auth/login.ts": 2 };
+    const result = await run({ ...INPUTS, mode: "strict", minChangedLines: 5 }, PR, api, log);
+    expect(result.drift).toBe(false);
+    expect(log.failed).toEqual([]);
+    expect(api.comments).toEqual([]);
+
+    api.lines = { "src/auth/login.ts": 5 };
+    expect((await run({ ...INPUTS, mode: "strict", minChangedLines: 5 }, PR, api, log)).drift).toBe(true);
   });
 
   it("respects the skip label", async () => {
